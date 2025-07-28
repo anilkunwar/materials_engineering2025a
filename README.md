@@ -6,3 +6,5 @@
 *Advanced*
 [![meaningtowords](https://img.shields.io/badge/pytexAdvancedGUI-streamlit-red)](https://advancedlatexcompiler-materialsphysics.streamlit.app/)
 
+*Advanced Compilation using Latexmk*
+[![meaningtowords](https://img.shields.io/badge/pytexlmAdvancedGUI-streamlit-red)](https://advancedtexcompilation-lm.streamlit.app/)
