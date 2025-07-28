@@ -6,6 +6,7 @@ import re
 import base64
 from streamlit_ace import st_ace
 import tempfile
+import pdfminer
 from pdfminer.high_level import extract_text
 import fitz  # PyMuPDF
 
