@@ -4,5 +4,5 @@
 [![meaningtowords](https://img.shields.io/badge/pytexManuscriptsGUI-streamlit-red)](https://latexcompiler-materialsphysics.streamlit.app/)
 
 *Advanced*
-[![meaningtowords](https://img.shields.io/badge/pytexAdvancedGUI-streamlit-red)](https://latexcompiler-advancedmaterialsphysics.streamlit.app/)
+[![meaningtowords](https://img.shields.io/badge/pytexAdvancedGUI-streamlit-red)](https://advancedlatexcompiler-materialsphysics.streamlit.app/)
 
