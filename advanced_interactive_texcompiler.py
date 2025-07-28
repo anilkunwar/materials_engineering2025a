@@ -6,9 +6,14 @@ import re
 import base64
 from streamlit_ace import st_ace
 import tempfile
-import pdfminer
-from pdfminer.high_level import extract_text
-import fitz  # PyMuPDF
+
+# Try to import PDF tools with fallbacks
+PDF_TOOLS_AVAILABLE = True
+try:
+    from pdfminer.high_level import extract_text
+    import fitz  # PyMuPDF
+except ImportError:
+    PDF_TOOLS_AVAILABLE = False
 
 # Page config
 st.set_page_config(page_title="Elsevier LaTeX Compiler", layout="wide")
@@ -31,10 +36,9 @@ if not tex_file_path:
 with open(tex_file_path, "r", encoding="utf-8") as f:
     tex_content = f.read()
 
-# Extract TOC from LaTeX with more comprehensive pattern
+# Extract TOC from LaTeX
 def extract_toc_lines(content):
     toc = []
-    # Pattern now captures chapters, parts, and numbered/unnumbered sections
     pattern = re.compile(r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{([^}]*)\}')
     for i, line in enumerate(content.splitlines()):
         match = pattern.search(line)
@@ -48,7 +52,7 @@ def extract_toc_lines(content):
                 "subsubsection": 4,
                 "paragraph": 5,
                 "subparagraph": 6
-            }.get(level, 2)  # Default to section level if unknown
+            }.get(level, 2)
             toc.append({
                 "title": title,
                 "line": i,
@@ -60,7 +64,7 @@ def extract_toc_lines(content):
 
 toc_items = extract_toc_lines(tex_content)
 
-# Initialize session state for editor and PDF
+# Initialize session state
 if 'editor_content' not in st.session_state:
     st.session_state.editor_content = tex_content
 if 'selected_line' not in st.session_state:
@@ -82,16 +86,13 @@ with col1:
         if toc_items:
             search_query = st.text_input("🔍 Search sections...", "")
             
-            # Filter TOC based on search
             filtered_toc = [item for item in toc_items 
                           if search_query.lower() in item['title'].lower()] if search_query else toc_items
             
             for i, item in enumerate(filtered_toc):
-                # Create indentation based on level
                 indent_space = "&nbsp;" * 4 * item['indent']
                 button_label = f"{indent_space}▸ {item['title']} ({item['level']})"
                 
-                # Use columns to create a more structured layout
                 col_a, col_b = st.columns([6, 1])
                 with col_a:
                     if st.button(button_label, key=f"toc_{i}"):
@@ -102,14 +103,13 @@ with col1:
         else:
             st.info("No sections found in LaTeX.")
 
-    # Editor with persistent state and better navigation
+    # Editor configuration (without cursor_position)
     editor_args = {
         "value": st.session_state.editor_content,
         "language": "latex",
         "theme": "monokai",
         "key": "tex_editor",
         "height": 600,
-        "cursor_position": (st.session_state.selected_line, 0),
         "auto_update": True,
         "font_size": 14,
         "wrap": True
@@ -117,6 +117,18 @@ with col1:
     
     edited_tex = st_ace(**editor_args)
     st.session_state.editor_content = edited_tex
+
+    # After editor render, use JavaScript to set cursor position
+    if st.session_state.selected_line > 0:
+        js_code = f"""
+        <script>
+            setTimeout(() => {{
+                const editor = document.querySelector('.ace_editor').env.editor;
+                editor.gotoLine({st.session_state.selected_line + 1});
+            }}, 100);
+        </script>
+        """
+        st.components.v1.html(js_code, height=0)
 
     # Compilation controls
     auto_compile = st.checkbox("🔁 Auto-compile after saving", value=False)
@@ -130,12 +142,12 @@ with col1:
             st.success("✅ Changes saved.")
             if auto_compile:
                 compile_triggered = True
-                st.rerun()  # Trigger a rerun to immediately show compilation
+                st.rerun()
 
     with col_compile:
         if st.button("🛠 Compile LaTeX", help="Compile the LaTeX document to PDF"):
             compile_triggered = True
-            st.rerun()  # Trigger a rerun to immediately show compilation
+            st.rerun()
 
     if compile_triggered:
         try:
@@ -167,70 +179,79 @@ with col2:
     st.subheader("📄 PDF Preview")
     
     if st.session_state.pdf_data:
-        # Enhanced PDF viewing options
-        pdf_view_mode = st.radio(
-            "View Mode:",
-            ["Embedded", "Text Content", "Page Images"],
-            horizontal=True,
-            help="Choose how to display the PDF"
-        )
-        
-        if pdf_view_mode == "Embedded":
-            # Improved embedded viewer with page navigation
+        if not PDF_TOOLS_AVAILABLE:
+            st.warning("⚠️ Advanced PDF tools not available. Using basic viewer.")
+            st.info("Install pdfminer.six and PyMuPDF for enhanced features:")
+            st.code("pip install pdfminer.six pymupdf")
+            
+            # Basic PDF viewer fallback
             b64_pdf = base64.b64encode(st.session_state.pdf_data).decode("utf-8")
             pdf_view = f"""
             <iframe src="data:application/pdf;base64,{b64_pdf}#toolbar=1&navpanes=1&scrollbar=1"
                     width="100%" height="600" type="application/pdf"></iframe>
             """
             st.markdown(pdf_view, unsafe_allow_html=True)
+        else:
+            # Enhanced PDF viewing options
+            pdf_view_mode = st.radio(
+                "View Mode:",
+                ["Embedded", "Text Content", "Page Images"],
+                horizontal=True,
+                help="Choose how to display the PDF"
+            )
             
-        elif pdf_view_mode == "Text Content":
-            # Extract text content from PDF
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(st.session_state.pdf_data)
-                tmp_path = tmp.name
-            
-            try:
-                text = extract_text(tmp_path)
-                st.text_area("PDF Text Content", text, height=600)
-            except Exception as e:
-                st.error(f"Failed to extract text: {e}")
-            finally:
-                os.unlink(tmp_path)
+            if pdf_view_mode == "Embedded":
+                b64_pdf = base64.b64encode(st.session_state.pdf_data).decode("utf-8")
+                pdf_view = f"""
+                <iframe src="data:application/pdf;base64,{b64_pdf}#toolbar=1&navpanes=1&scrollbar=1"
+                        width="100%" height="600" type="application/pdf"></iframe>
+                """
+                st.markdown(pdf_view, unsafe_allow_html=True)
                 
-        elif pdf_view_mode == "Page Images":
-            # Display PDF as page images with navigation
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(st.session_state.pdf_data)
-                tmp_path = tmp.name
-            
-            try:
-                doc = fitz.open(tmp_path)
-                total_pages = doc.page_count
+            elif pdf_view_mode == "Text Content":
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(st.session_state.pdf_data)
+                    tmp_path = tmp.name
                 
-                col_page1, col_page2 = st.columns([2, 3])
-                with col_page1:
-                    page_num = st.number_input(
-                        "Page number", 
-                        min_value=1, 
-                        max_value=total_pages, 
-                        value=1,
-                        step=1
-                    )
+                try:
+                    text = extract_text(tmp_path)
+                    st.text_area("PDF Text Content", text, height=600)
+                except Exception as e:
+                    st.error(f"Failed to extract text: {e}")
+                finally:
+                    os.unlink(tmp_path)
+                    
+            elif pdf_view_mode == "Page Images":
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(st.session_state.pdf_data)
+                    tmp_path = tmp.name
                 
-                page = doc.load_page(page_num - 1)
-                pix = page.get_pixmap()
-                img_bytes = pix.tobytes("png")
-                
-                st.image(img_bytes, caption=f"Page {page_num} of {total_pages}", use_column_width=True)
-                
-            except Exception as e:
-                st.error(f"Failed to render PDF pages: {e}")
-            finally:
-                doc.close()
-                os.unlink(tmp_path)
+                try:
+                    doc = fitz.open(tmp_path)
+                    total_pages = doc.page_count
+                    
+                    col_page1, col_page2 = st.columns([2, 3])
+                    with col_page1:
+                        page_num = st.number_input(
+                            "Page number", 
+                            min_value=1, 
+                            max_value=total_pages, 
+                            value=1,
+                            step=1
+                        )
+                    
+                    page = doc.load_page(page_num - 1)
+                    pix = page.get_pixmap()
+                    img_bytes = pix.tobytes("png")
+                    
+                    st.image(img_bytes, caption=f"Page {page_num} of {total_pages}", use_column_width=True)
+                    
+                except Exception as e:
+                    st.error(f"Failed to render PDF pages: {e}")
+                finally:
+                    doc.close()
+                    os.unlink(tmp_path)
         
-        # Download button
         st.download_button(
             "📥 Download PDF", 
             st.session_state.pdf_data, 
@@ -256,9 +277,7 @@ st.markdown("""
 - `cas-sc.cls` (or journal class)
 - Images and `.bib` files
 
-**New Features:**
-- Enhanced TOC with hierarchical display and search
-- Multiple PDF viewing modes (embedded, text, page images)
-- Persistent editor state between compilations
-- Improved navigation and UI
-""")
+**For enhanced features:**
+Install additional packages:
+```bash
+pip install pdfminer.six pymupdf
