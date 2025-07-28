@@ -1,79 +1,48 @@
 import streamlit as st
 import os
-import tempfile
-import zipfile
-from datetime import datetime
 import subprocess
+from datetime import datetime
 
 # Streamlit page configuration
-st.set_page_config(page_title="Elsevier LaTeX ZIP Compiler", layout="wide")
+st.set_page_config(page_title="Elsevier LaTeX Compiler", layout="wide")
 
 # Title and description
-st.title("Elsevier LaTeX ZIP Compiler")
-st.write("Upload a ZIP file or specify the name of a ZIP file in the same directory as this script, containing a `manuscript` directory with a `.tex` file (e.g., `paper.tex`), `cas-sc.cls`, and optionally `.bib` and figures in a `figures` directory. Compile to generate a PDF using latexmk.")
+st.title("Elsevier LaTeX Compiler")
+st.write("Compiles a `.tex` file from the `manuscript` directory (located in the same directory as this script) using latexmk. Ensure the `manuscript` directory contains a `.tex` file (e.g., `paper.tex`), `cas-sc.cls`, and optionally a `.bib` file and a `figures` directory with images (e.g., `figures/graphical_abstract.png`).")
 
-# Tabs for upload or adjacent ZIP file
-tab1, tab2 = st.tabs(["Upload ZIP File", "Use Adjacent ZIP File"])
+# Get the directory of the current .py file
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Initialize zip_path
-zip_path = None
+# Initialize variables
 pdf_data = None
 pdf_filename = None
 
-with tab1:
-    # File uploader for ZIP file
-    uploaded_zip = st.file_uploader("Upload ZIP file", type=["zip"], key="uploader")
-    if uploaded_zip is not None:
-        # Save uploaded ZIP to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-            tmp_zip.write(uploaded_zip.read())
-            zip_path = tmp_zip.name
-
-with tab2:
-    # Text input for ZIP file name in the same directory
-    zip_filename_input = st.text_input("Enter ZIP file name (e.g., manuscript.zip)", key="zip_filename")
-    if zip_filename_input:
-        # Get the directory of the current .py file
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        local_zip_path = os.path.join(script_dir, zip_filename_input)
-        if os.path.exists(local_zip_path) and zip_filename_input.endswith(".zip"):
-            zip_path = local_zip_path
-        else:
-            st.error(f"ZIP file '{zip_filename_input}' not found in the same directory as the script or is not a valid ZIP file.")
-
 # Compile button and processing logic
-if zip_path is not None and st.button("Compile LaTeX"):
+if st.button("Compile LaTeX"):
     try:
-        # Create a temporary directory to store extracted files
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            # Extract the ZIP file
-            with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                zip_ref.extractall(tmpdirname)
-
-            # Log extracted files for debugging
-            extracted_files = []
-            for root, _, files in os.walk(tmpdirname):
+        # Locate the manuscript directory
+        manuscript_dir = os.path.join(script_dir, "manuscript")
+        if not os.path.exists(manuscript_dir):
+            st.error("`manuscript` directory not found in the same directory as this script.")
+        else:
+            # Log files in manuscript directory for debugging
+            manuscript_files = []
+            for root, _, files in os.walk(manuscript_dir):
                 for file in files:
-                    extracted_files.append(os.path.join(root, file))
-            if extracted_files:
-                st.write("Extracted files:", extracted_files)
+                    manuscript_files.append(os.path.join(root, file))
+            if manuscript_files:
+                st.write("Files in manuscript directory:", manuscript_files)
             else:
-                st.error("No files found in the ZIP. Please ensure the ZIP contains files.")
+                st.error("No files found in the `manuscript` directory.")
 
             # Search for a .tex file in the manuscript directory
             tex_file_path = None
-            manuscript_dir = None
-            for root, dirs, files in os.walk(tmpdirname):
-                if "manuscript" in dirs:
-                    manuscript_dir = os.path.join(root, "manuscript")
-                    for file in os.listdir(manuscript_dir):
-                        if file.endswith(".tex"):
-                            tex_file_path = os.path.join(manuscript_dir, file)
-                            break
-                if tex_file_path:
+            for file in os.listdir(manuscript_dir):
+                if file.endswith(".tex"):
+                    tex_file_path = os.path.join(manuscript_dir, file)
                     break
             if not tex_file_path:
-                st.error("No `.tex` file found in the `manuscript` directory of the ZIP.")
+                st.error("No `.tex` file found in the `manuscript` directory.")
             else:
                 # Read .tex content for debugging
                 with open(tex_file_path, "r", encoding="utf-8") as f:
@@ -84,7 +53,7 @@ if zip_path is not None and st.button("Compile LaTeX"):
                 try:
                     result = subprocess.run(
                         ["latexmk", "-pdf", "-pdflatex=pdflatex", "-interaction=nonstopmode", tex_file_path],
-                        cwd=os.path.dirname(tex_file_path),
+                        cwd=manuscript_dir,
                         capture_output=True,
                         text=True,
                         timeout=120
@@ -125,27 +94,20 @@ if zip_path is not None and st.button("Compile LaTeX"):
                     st.error("LaTeX compilation timed out. Please simplify your document or check for errors.")
                 except Exception as latexmk_error:
                     st.error(f"latexmk compilation failed: {str(latexmk_error)}")
-                    st.write("Please ensure all required files (e.g., cas-sc.cls, .bib, figures) are included in the ZIP.")
+                    st.write("Please ensure all required files (e.g., cas-sc.cls, .bib, figures) are included in the `manuscript` and `figures` directories.")
 
-    except zipfile.BadZipFile:
-        st.error("Invalid ZIP file. Please upload or specify a valid ZIP archive.")
     except PermissionError:
-        st.error("Permission denied while accessing ZIP file or extracted files. Check file permissions.")
+        st.error("Permission denied while accessing files in the `manuscript` directory. Check file permissions.")
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-    finally:
-        # Clean up temporary uploaded ZIP file if it exists
-        if uploaded_zip is not None and zip_path is not None and os.path.exists(zip_path):
-            os.unlink(zip_path)
 
 # Instructions for the user
 st.markdown("""
 ### Instructions
-1. **Upload Option**: Upload a ZIP containing a `manuscript` directory with a `.tex` file (e.g., `paper.tex`), `cas-sc.cls`, and optionally `.bib` and a `figures` directory with images (e.g., `figures/graphical_abstract.png`).
-2. **Adjacent ZIP Option**: Enter the name of a ZIP file (e.g., `manuscript.zip`) in the same directory as this script.
-3. Ensure the ZIP has the structure:
+1. Ensure the `manuscript` directory is in the same directory as this script (`texcompiler.py`), with the structure:
    ```
-   manuscript.zip
+   latex_typesetting/
+   ├── texcompiler.py
    ├── manuscript/
    │   ├── paper.tex  (or anyname.tex)
    │   ├── cas-sc.cls
@@ -153,9 +115,9 @@ st.markdown("""
    ├── figures/
    │   └── graphical_abstract.png  (optional)
    ```
-4. Click "Compile LaTeX" to generate the PDF using latexmk.
-5. Download the PDF or view it in the preview section.
-6. For Streamlit Cloud deployment, include:
+2. Click "Compile LaTeX" to generate the PDF using latexmk.
+3. Download the PDF or view it in the preview section.
+4. For Streamlit Cloud deployment, include:
    - `requirements.txt`:
      ```
      streamlit
@@ -165,7 +127,7 @@ st.markdown("""
      texlive-full
      latexmk
      ```
-7. Example `paper.tex`:
+5. Example `paper.tex`:
    ```latex
    \\documentclass[a4paper,fleqn]{cas-sc}
    \\usepackage[version=4]{mhchem}
@@ -193,11 +155,13 @@ st.markdown("""
    Test document.
    \\end{document}
    ```
-8. Create the ZIP:
+6. Ensure `cas-sc.cls` is in the `manuscript` directory (download from https://ctan.org/pkg/els-cas).
+7. For local testing:
    ```bash
-   mkdir -p manuscript figures
-   mv paper.tex manuscript/
-   cp cas-sc.cls manuscript/
-   zip -r manuscript.zip manuscript/ figures/
+   conda activate stenv
+   pip install streamlit
+   sudo apt-get install texlive-full latexmk
+   streamlit run texcompiler.py
    ```
+8. For Streamlit Cloud, push to `anilkunwar/latex_typesetting` with the above structure.
 """)
