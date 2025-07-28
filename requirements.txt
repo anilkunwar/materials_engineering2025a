@@ -2,3 +2,4 @@ pylatex
 pdfminer.six
 streamlit
 streamlit-ace
+PyMuPDF
