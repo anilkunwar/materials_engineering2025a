@@ -1,4 +1,4 @@
 pylatex
-pdfminer
+pdfminer.six
 streamlit
 streamlit-ace
