@@ -78,7 +78,9 @@ with col1:
         font_size=14,
         tab_size=2,
         placeholder="Edit your LaTeX here...",
-        cursor_position={"row": selected_line, "column": 0},  # jump to line
+        #cursor_position={"row": selected_line, "column": 0},  # jump to line
+        cursor_position=(selected_line, 0),
+
     )
 
     auto_compile = st.checkbox("🔁 Auto-compile after saving", value=False)
