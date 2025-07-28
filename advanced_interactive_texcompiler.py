@@ -1,26 +1,23 @@
 import streamlit as st
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
 import base64
 from streamlit_ace import st_ace
-from streamlit_tree_select import tree_select
+import tempfile
 
-# Streamlit page configuration
+# Try to import PDF tools with fallbacks
+PDF_TOOLS_AVAILABLE = True
+try:
+    from pdfminer.high_level import extract_text
+    import fitz  # PyMuPDF
+except ImportError:
+    PDF_TOOLS_AVAILABLE = False
+
+# Page config
 st.set_page_config(page_title="Elsevier LaTeX Compiler", layout="wide")
-
-# Title and description
 st.title("📄 Elsevier LaTeX Compiler")
-st.write("Edit and compile a `.tex` file from the `manuscript` directory. The LaTeX editor and hierarchical table of contents are on the left, with an interactive PDF preview on the right.")
-
-# Initialize session state
-if "highlight_line" not in st.session_state:
-    st.session_state["highlight_line"] = None
-if "last_compile" not in st.session_state:
-    st.session_state["last_compile"] = None
-if "last_edited_tex" not in st.session_state:
-    st.session_state["last_edited_tex"] = ""
 
 # File path setup
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,137 +33,143 @@ if not tex_file_path:
     st.error("❌ No `.tex` file found in `manuscript/`.")
     st.stop()
 
-# Read initial .tex content
 with open(tex_file_path, "r", encoding="utf-8") as f:
     tex_content = f.read()
 
-# Extract TOC for tree structure
-def extract_toc_tree(content):
+# Extract TOC from LaTeX
+def extract_toc_lines(content):
     toc = []
-    pattern = re.compile(r'\\(section|subsection|subsubsection)\{([^}]*)\}')
-    current_section = None
-    current_subsection = None
+    pattern = re.compile(r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{([^}]*)\}')
     for i, line in enumerate(content.splitlines()):
         match = pattern.search(line)
         if match:
             level, title = match.group(1), match.group(2)
-            node = {"label": title, "value": f"{level}_{i}", "line": i}
-            if level == "section":
-                current_section = node
-                current_section["children"] = []
-                toc.append(current_section)
-            elif level == "subsection" and current_section:
-                current_subsection = node
-                current_subsection["children"] = []
-                current_section["children"].append(current_subsection)
-            elif level == "subsubsection" and current_subsection:
-                current_subsection["children"].append(node)
+            indent = {
+                "part": 0,
+                "chapter": 1,
+                "section": 2,
+                "subsection": 3,
+                "subsubsection": 4,
+                "paragraph": 5,
+                "subparagraph": 6
+            }.get(level, 2)
+            toc.append({
+                "title": title,
+                "line": i,
+                "indent": indent,
+                "level": level,
+                "full_line": line.strip()
+            })
     return toc
 
-toc_tree = extract_toc_tree(tex_content)
+toc_items = extract_toc_lines(tex_content)
 
-# Create two-column layout
+# Initialize session state
+if 'editor_content' not in st.session_state:
+    st.session_state.editor_content = tex_content
+if 'selected_line' not in st.session_state:
+    st.session_state.selected_line = 0
+if 'pdf_data' not in st.session_state:
+    st.session_state.pdf_data = None
+if 'pdf_filename' not in st.session_state:
+    st.session_state.pdf_filename = None
+if 'last_compiled' not in st.session_state:
+    st.session_state.last_compiled = None
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("✍️ Edit LaTeX File")
-    
-    # Table of Contents
-    with st.expander("📚 Table of Contents", expanded=True):
-        if toc_tree:
-            selected_nodes = tree_select(
-                toc_tree,
-                key="toc_tree",
-                expand_on_click=True,
-                show_expand_all=True
-            )
-            if selected_nodes["checked"]:
-                selected_value = selected_nodes["checked"][0]
-                selected_line = next((node["line"] for node in toc_tree if node["value"] == selected_value or any(child["value"] == selected_value for child in node.get("children", []) or any(grandchild["value"] == selected_value for child in node.get("children", []) for grandchild in child.get("children", [])))), None)
-                if selected_line is not None:
-                    st.session_state["highlight_line"] = selected_line
+
+    # Enhanced TOC with hierarchy display and search
+    with st.expander("📚 Table of Contents (Click to navigate)", expanded=True):
+        if toc_items:
+            search_query = st.text_input("🔍 Search sections...", "")
+            
+            filtered_toc = [item for item in toc_items 
+                          if search_query.lower() in item['title'].lower()] if search_query else toc_items
+            
+            for i, item in enumerate(filtered_toc):
+                indent_space = "&nbsp;" * 4 * item['indent']
+                button_label = f"{indent_space}▸ {item['title']} ({item['level']})"
+                
+                col_a, col_b = st.columns([6, 1])
+                with col_a:
+                    if st.button(button_label, key=f"toc_{i}"):
+                        st.session_state.selected_line = item["line"]
+                with col_b:
+                    if st.button("⚡", key=f"jump_{i}", help=f"Jump to {item['title']}"):
+                        st.session_state.selected_line = item["line"]
         else:
-            st.info("🛈 No sections found in LaTeX.")
+            st.info("No sections found in LaTeX.")
 
-    # Go to Line dropdown
-    st.write("Go to Line:")
-    line_numbers = list(range(1, len(tex_content.splitlines()) + 1))
-    selected_line = st.selectbox("Select line number", line_numbers, index=0, key="goto_line")
-    if st.button("Go"):
-        st.session_state["highlight_line"] = selected_line - 1
+    # Editor configuration (without cursor_position)
+    editor_args = {
+        "value": st.session_state.editor_content,
+        "language": "latex",
+        "theme": "monokai",
+        "key": "tex_editor",
+        "height": 600,
+        "auto_update": True,
+        "font_size": 14,
+        "wrap": True
+    }
+    
+    edited_tex = st_ace(**editor_args)
+    st.session_state.editor_content = edited_tex
 
-    # LaTeX editor with error annotations
-    annotations = []
-    if edited_tex := st.session_state.get("last_edited_tex", tex_content):
-        # Basic syntax check for unmatched braces
-        open_braces = edited_tex.count("{")
-        close_braces = edited_tex.count("}")
-        if open_braces != close_braces:
-            annotations.append({
-                "row": 0,
-                "column": 0,
-                "type": "error",
-                "text": f"Unmatched braces: {open_braces} '{{' vs {close_braces} '}}'"
-            })
+    # After editor render, use JavaScript to set cursor position
+    if st.session_state.selected_line > 0:
+        js_code = f"""
+        <script>
+            setTimeout(() => {{
+                const editor = document.querySelector('.ace_editor').env.editor;
+                editor.gotoLine({st.session_state.selected_line + 1});
+            }}, 100);
+        </script>
+        """
+        st.components.v1.html(js_code, height=0)
 
-    edited_tex = st_ace(
-        value=tex_content,
-        language="latex",
-        theme="monokai",
-        key="tex_editor",
-        height=600,
-        auto_update=True,
-        annotations=annotations,
-        highlight_lines=[st.session_state["highlight_line"]] if st.session_state["highlight_line"] is not None else []
-    )
-
-    # Save and compile options
-    auto_compile = st.checkbox("🔁 Auto-compile after edits (500ms delay)", value=False)
+    # Compilation controls
+    auto_compile = st.checkbox("🔁 Auto-compile after saving", value=False)
     compile_triggered = False
 
-    if st.button("💾 Save Changes"):
-        with open(tex_file_path, "w", encoding="utf-8") as f:
-            f.write(edited_tex)
-        st.success("✅ Changes saved.")
-        if auto_compile:
+    col_save, col_compile = st.columns(2)
+    with col_save:
+        if st.button("💾 Save Changes", help="Save changes to the LaTeX file"):
+            with open(tex_file_path, "w", encoding="utf-8") as f:
+                f.write(edited_tex)
+            st.success("✅ Changes saved.")
+            if auto_compile:
+                compile_triggered = True
+                st.rerun()
+
+    with col_compile:
+        if st.button("🛠 Compile LaTeX", help="Compile the LaTeX document to PDF"):
             compile_triggered = True
-
-    if st.button("🛠 Compile LaTeX"):
-        compile_triggered = True
-
-    # Debounced auto-compilation
-    if auto_compile and edited_tex != st.session_state["last_edited_tex"]:
-        if st.session_state["last_compile"] is None or (datetime.now() - st.session_state["last_compile"]).total_seconds() > 0.5:
-            compile_triggered = True
-            st.session_state["last_edited_tex"] = edited_tex
-            st.session_state["last_compile"] = datetime.now()
-
-    pdf_data = None
-    pdf_filename = None
+            st.rerun()
 
     if compile_triggered:
         try:
-            # Save edited content
-            with open(tex_file_path, "w", encoding="utf-8") as f:
-                f.write(edited_tex)
-            
-            # Compile with latexmk
-            result = subprocess.run(
-                ["latexmk", "-pdf", "-pdflatex=pdflatex", "-interaction=nonstopmode", tex_file_path],
-                cwd=manuscript_dir,
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            pdf_path = os.path.splitext(tex_file_path)[0] + ".pdf"
-            if result.returncode == 0 and os.path.exists(pdf_path):
-                with open(pdf_path, "rb") as f:
-                    pdf_data = f.read()
-                pdf_filename = f"compiled_{os.path.basename(os.path.splitext(tex_file_path)[0])}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                st.success("✅ PDF compiled successfully.")
-            else:
-                st.error("❌ Compilation failed.")
-                st.text_area("latexmk Output", result.stdout + result.stderr, height=200)
+            with st.spinner("⏳ Compiling LaTeX..."):
+                result = subprocess.run(
+                    ["latexmk", "-pdf", "-interaction=nonstopmode", tex_file_path],
+                    cwd=manuscript_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                pdf_path = os.path.splitext(tex_file_path)[0] + ".pdf"
+                if result.returncode == 0 and os.path.exists(pdf_path):
+                    with open(pdf_path, "rb") as f:
+                        st.session_state.pdf_data = f.read()
+                    st.session_state.pdf_filename = f"compiled_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    st.session_state.last_compiled = datetime.now()
+                    st.success("✅ PDF compiled successfully.")
+                else:
+                    st.error("❌ Compilation failed.")
+                    with st.expander("🔍 View compilation log"):
+                        st.text_area("latexmk Output", result.stdout + result.stderr, height=200)
         except subprocess.TimeoutExpired:
             st.error("⏳ Compilation timed out.")
         except Exception as e:
@@ -174,49 +177,107 @@ with col1:
 
 with col2:
     st.subheader("📄 PDF Preview")
-    if pdf_data:
-        b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
-        viewer_html = f"""
-        <iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file=data:application/pdf;base64,{b64_pdf}"
-                width="100%" height="600px"></iframe>
-        """
-        st.components.v1.html(viewer_html, height=600)
-        st.download_button("📥 Download PDF", pdf_data, file_name=pdf_filename, mime="application/pdf")
+    
+    if st.session_state.pdf_data:
+        if not PDF_TOOLS_AVAILABLE:
+            st.warning("⚠️ Advanced PDF tools not available. Using basic viewer.")
+            st.info("Install pdfminer.six and PyMuPDF for enhanced features:")
+            st.code("pip install pdfminer.six pymupdf")
+            
+            # Basic PDF viewer fallback
+            b64_pdf = base64.b64encode(st.session_state.pdf_data).decode("utf-8")
+            pdf_view = f"""
+            <iframe src="data:application/pdf;base64,{b64_pdf}#toolbar=1&navpanes=1&scrollbar=1"
+                    width="100%" height="600" type="application/pdf"></iframe>
+            """
+            st.markdown(pdf_view, unsafe_allow_html=True)
+        else:
+            # Enhanced PDF viewing options
+            pdf_view_mode = st.radio(
+                "View Mode:",
+                ["Embedded", "Text Content", "Page Images"],
+                horizontal=True,
+                help="Choose how to display the PDF"
+            )
+            
+            if pdf_view_mode == "Embedded":
+                b64_pdf = base64.b64encode(st.session_state.pdf_data).decode("utf-8")
+                pdf_view = f"""
+                <iframe src="data:application/pdf;base64,{b64_pdf}#toolbar=1&navpanes=1&scrollbar=1"
+                        width="100%" height="600" type="application/pdf"></iframe>
+                """
+                st.markdown(pdf_view, unsafe_allow_html=True)
+                
+            elif pdf_view_mode == "Text Content":
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(st.session_state.pdf_data)
+                    tmp_path = tmp.name
+                
+                try:
+                    text = extract_text(tmp_path)
+                    st.text_area("PDF Text Content", text, height=600)
+                except Exception as e:
+                    st.error(f"Failed to extract text: {e}")
+                finally:
+                    os.unlink(tmp_path)
+                    
+            elif pdf_view_mode == "Page Images":
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(st.session_state.pdf_data)
+                    tmp_path = tmp.name
+                
+                try:
+                    doc = fitz.open(tmp_path)
+                    total_pages = doc.page_count
+                    
+                    col_page1, col_page2 = st.columns([2, 3])
+                    with col_page1:
+                        page_num = st.number_input(
+                            "Page number", 
+                            min_value=1, 
+                            max_value=total_pages, 
+                            value=1,
+                            step=1
+                        )
+                    
+                    page = doc.load_page(page_num - 1)
+                    pix = page.get_pixmap()
+                    img_bytes = pix.tobytes("png")
+                    
+                    st.image(img_bytes, caption=f"Page {page_num} of {total_pages}", use_column_width=True)
+                    
+                except Exception as e:
+                    st.error(f"Failed to render PDF pages: {e}")
+                finally:
+                    doc.close()
+                    os.unlink(tmp_path)
+        
+        st.download_button(
+            "📥 Download PDF", 
+            st.session_state.pdf_data, 
+            file_name=st.session_state.pdf_filename, 
+            mime="application/pdf"
+        )
+        
+        if st.session_state.last_compiled:
+            st.caption(f"Last compiled: {st.session_state.last_compiled.strftime('%Y-%m-%d %H:%M:%S')}")
     else:
-        st.info("🛈 PDF not compiled yet. Click **Compile LaTeX** or enable auto-compile.")
+        st.info("🛈 PDF not compiled yet. Click **Compile LaTeX** after saving.")
 
-# Instructions
 st.markdown("---")
 st.markdown("""
 **Instructions:**
-1. Edit the LaTeX file in the left panel.
-2. Expand/collapse the Table of Contents to navigate sections; click to highlight lines.
-3. Use "Go to Line" to jump to specific lines.
-4. Save changes and compile (auto-compile optional with 500ms debounce).
-5. View/download the interactive PDF on the right (supports zoom, thumbnails).
+1. Click a section in the Table of Contents to jump to it.
+2. Edit your LaTeX file in the left panel.
+3. Save and compile LaTeX.
+4. View and download the PDF in the right panel.
 
-📁 **Repository structure:**
-```
-latex_typesetting/
-├── texcompiler.py
-├── manuscript/
-│   ├── paper.tex
-│   ├── cas-sc.cls
-│   └── references.bib  (optional)
-├── figures/
-│   └── graphical_abstract.png  (optional)
-```
+📁 `manuscript/` should include:
+- `.tex` file
+- `cas-sc.cls` (or journal class)
+- Images and `.bib` files
 
-**Streamlit Cloud Setup:**
-- `requirements.txt`:
-  ```
-  streamlit
-  streamlit_ace
-  streamlit_tree_select
-  ```
-- `packages.txt`:
-  ```
-  texlive-full
-  latexmk
-  ```
-""")
+**For enhanced features:**
+Install additional packages:
+```bash
+pip install pdfminer.six pymupdf
