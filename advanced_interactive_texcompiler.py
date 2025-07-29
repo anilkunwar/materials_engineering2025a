@@ -9,10 +9,10 @@ import tempfile
 import fitz  # PyMuPDF for PDF rendering
 
 # Streamlit page configuration
-st.set_page_config(page_title="Elsevier LaTeX Compiler", layout="wide")
+st.set_page_config(page_title="LaTeX Compiler", layout="wide")
 
 # Title and description
-st.title("📄 Elsevier LaTeX Compiler")
+st.title("📄 LaTeX Compiler")
 st.write("Edit and compile a `.tex` file from the `manuscript` directory. The editor with section navigation is on the left, and the PDF preview is on the right.")
 
 # File path setup
