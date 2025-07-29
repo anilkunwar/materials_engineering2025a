@@ -13,7 +13,7 @@ st.set_page_config(page_title="Elsevier LaTeX Compiler", layout="wide")
 
 # Title and description
 st.title("📄 Elsevier LaTeX Compiler")
-st.write("Edit and compile a `.tex` file from the `manuscript` directory. The editor is in the main area, and the PDF preview is on the right.")
+st.write("Edit and compile a `.tex` file from the `manuscript` directory. The editor with section navigation is on the left, and the PDF preview is on the right.")
 
 # File path setup
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -44,10 +44,20 @@ def extract_toc_lines(content):
         match = pattern.search(line)
         if match:
             level, title = match.group(1), match.group(2)
+            indent = {
+                "part": 0,
+                "chapter": 0,
+                "section": 0,
+                "subsection": 1,
+                "subsubsection": 2,
+                "paragraph": 3,
+                "subparagraph": 4
+            }.get(level, 0)
             toc.append({
                 "title": title, 
                 "line": i, 
-                "level": level
+                "level": level,
+                "indent": indent
             })
     return toc
 
@@ -69,62 +79,69 @@ if 'tex_content' not in st.session_state:
 if 'doc' not in st.session_state:
     st.session_state.doc = None
 
-# Create sidebar for Table of Contents
-with st.sidebar:
-    st.subheader("📚 Table of Contents")
-    
-    # TOC search functionality
-    search_query = st.text_input("🔍 Search sections...", "", key="toc_search")
-    
-    if toc_items:
-        # Filter TOC based on search
-        filtered_toc = [item for item in toc_items 
-                      if search_query.lower() in item['title'].lower()] if search_query else toc_items
-        
-        # Display TOC items with icons
-        for i, item in enumerate(filtered_toc):
-            level_icon = {
-                "part": "📚",
-                "chapter": "📖",
-                "section": "📝",
-                "subsection": "↳",
-                "subsubsection": "↳",
-                "paragraph": "↳",
-                "subparagraph": "↳"
-            }.get(item['level'], "•")
-            
-            # Create a button for each TOC item
-            if st.button(f"{level_icon} {item['title']}", key=f"toc_{i}", use_container_width=True):
-                st.session_state.selected_line = item['line']
-                st.rerun()
-    else:
-        st.info("No sections found in document.")
-
 # Main layout with two columns
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("✍️ LaTeX Editor")
     
-    # LaTeX editor with cursor positioning
-    editor_args = {
-        "value": st.session_state.tex_content,
-        "language": "latex",
-        "theme": "monokai",
-        "key": "tex_editor",
-        "height": 600,
-        "auto_update": True,
-        "font_size": 14,
-        "wrap": True
-    }
+    # Split the left column into two: TOC panel and editor
+    toc_col, editor_col = st.columns([1, 3])
     
-    edited_tex = st_ace(**editor_args)
+    with toc_col:
+        st.markdown("**📚 Document Sections**")
+        toc_container = st.container(height=650)
+        
+        with toc_container:
+            if toc_items:
+                # TOC search functionality
+                search_query = st.text_input("🔍 Search sections...", "", key="toc_search")
+                
+                # Filter TOC based on search
+                filtered_toc = [item for item in toc_items 
+                              if search_query.lower() in item['title'].lower()] if search_query else toc_items
+                
+                # Display TOC items with icons and indentation
+                for i, item in enumerate(filtered_toc):
+                    indent = "&nbsp;" * 4 * item['indent']
+                    level_icon = {
+                        "part": "📚",
+                        "chapter": "📖",
+                        "section": "📝",
+                        "subsection": "↳",
+                        "subsubsection": "↳",
+                        "paragraph": "↳",
+                        "subparagraph": "↳"
+                    }.get(item['level'], "•")
+                    
+                    # Create a button for each TOC item
+                    if st.button(f"{indent}{level_icon} {item['title']}", 
+                                 key=f"toc_{i}", 
+                                 use_container_width=True):
+                        st.session_state.selected_line = item['line']
+            else:
+                st.info("No sections found in document.")
     
-    # Update session state if content changes
-    if edited_tex != st.session_state.tex_content:
-        st.session_state.tex_content = edited_tex
+    with editor_col:
+        # LaTeX editor with cursor positioning
+        editor_args = {
+            "value": st.session_state.tex_content,
+            "language": "latex",
+            "theme": "monokai",
+            "key": "tex_editor",
+            "height": 650,  # Increased height
+            "auto_update": True,
+            "font_size": 14,
+            "wrap": True
+        }
+        
+        edited_tex = st_ace(**editor_args)
+        
+        # Update session state if content changes
+        if edited_tex != st.session_state.tex_content:
+            st.session_state.tex_content = edited_tex
 
-    # Save and compile options
+    # Save and compile options below the editor
     auto_compile = st.checkbox("🔁 Auto-compile after saving", value=True)
     compile_triggered = False
 
@@ -169,6 +186,8 @@ with col1:
                         tmp_file.write(st.session_state.pdf_data)
                         tmp_path = tmp_file.name
                     
+                    if st.session_state.doc:
+                        st.session_state.doc.close()
                     st.session_state.doc = fitz.open(tmp_path)
                     st.session_state.total_pages = st.session_state.doc.page_count
                     st.session_state.current_page = 1
@@ -199,23 +218,19 @@ with col2:
             
             if page_num != st.session_state.current_page:
                 st.session_state.current_page = page_num
-                st.rerun()
         
         # Navigation buttons
         col_prev, col_next, col_jump = st.columns([1, 1, 2])
         with col_prev:
             if st.button("◀ Previous Page", use_container_width=True) and st.session_state.current_page > 1:
                 st.session_state.current_page -= 1
-                st.rerun()
         with col_next:
             if st.button("Next Page ▶", use_container_width=True) and st.session_state.current_page < st.session_state.total_pages:
                 st.session_state.current_page += 1
-                st.rerun()
         with col_jump:
             jump_page = st.number_input("Jump to page", min_value=1, max_value=st.session_state.total_pages, value=st.session_state.current_page)
             if st.button("Go", use_container_width=True) and jump_page != st.session_state.current_page:
                 st.session_state.current_page = jump_page
-                st.rerun()
         
         # Render the selected page
         try:
@@ -268,4 +283,3 @@ if st.session_state.pdf_data:
                f"Pages: {st.session_state.total_pages}")
 else:
     st.caption(f"📄 Ready to compile | Editing: {os.path.basename(tex_file_path)}")
-
