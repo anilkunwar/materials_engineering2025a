@@ -96,7 +96,7 @@ with st.sidebar:
             # Create a button for each TOC item
             if st.button(f"{level_icon} {item['title']}", key=f"toc_{i}", use_container_width=True):
                 st.session_state.selected_line = item['line']
-                st.experimental_rerun()
+                st.rerun()
     else:
         st.info("No sections found in document.")
 
@@ -199,23 +199,23 @@ with col2:
             
             if page_num != st.session_state.current_page:
                 st.session_state.current_page = page_num
-                st.experimental_rerun()
+                st.rerun()
         
         # Navigation buttons
         col_prev, col_next, col_jump = st.columns([1, 1, 2])
         with col_prev:
             if st.button("◀ Previous Page", use_container_width=True) and st.session_state.current_page > 1:
                 st.session_state.current_page -= 1
-                st.experimental_rerun()
+                st.rerun()
         with col_next:
             if st.button("Next Page ▶", use_container_width=True) and st.session_state.current_page < st.session_state.total_pages:
                 st.session_state.current_page += 1
-                st.experimental_rerun()
+                st.rerun()
         with col_jump:
             jump_page = st.number_input("Jump to page", min_value=1, max_value=st.session_state.total_pages, value=st.session_state.current_page)
             if st.button("Go", use_container_width=True) and jump_page != st.session_state.current_page:
                 st.session_state.current_page = jump_page
-                st.experimental_rerun()
+                st.rerun()
         
         # Render the selected page
         try:
