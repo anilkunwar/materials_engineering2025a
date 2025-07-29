@@ -11,3 +11,8 @@
 
 *Advanced Compilation using interactive Pdf at Side Panel*
 [![meaningtowords](https://img.shields.io/badge/pytexpdfGUI-streamlit-red)](https://advancedinteractivetexcompiler-lm.streamlit.app/)
+
+*Advanced Compilation using interactive Pdf at Bottom*
+[![meaningtowords](https://img.shields.io/badge/pytexbpdfGUI-streamlit-red)](https://interactivelatex-bottompdf.streamlit.app/)
+
+
