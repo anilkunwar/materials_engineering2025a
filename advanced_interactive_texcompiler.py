@@ -269,18 +269,3 @@ if st.session_state.pdf_data:
 else:
     st.caption(f"📄 Ready to compile | Editing: {os.path.basename(tex_file_path)}")
 
-# Instructions
-st.markdown("""
-**Instructions:**
-1. Use the sidebar Table of Contents to navigate sections
-2. Edit the LaTeX file in the editor
-3. Save changes and compile
-4. Navigate through PDF pages using the controls
-
-**Features:**
-- Sidebar Table of Contents with search
-- Page-by-page PDF navigation
-- Direct jump to sections in editor
-- Persistent PDF preview across compilations
-
-📁 **Required directory structure:**
