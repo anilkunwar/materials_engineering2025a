@@ -280,4 +280,4 @@ st.markdown("""
 **For enhanced features:**
 Install additional packages:
 ```bash
-pip install pdfminer.six pymupdf
+pip install pdfminer.six pymupdf""")
