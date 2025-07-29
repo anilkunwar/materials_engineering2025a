@@ -262,19 +262,3 @@ if st.session_state.pdf_data:
 else:
     st.caption(f"📄 Ready to compile | Editing: {os.path.basename(tex_file_path)}")
 
-# Instructions
-st.markdown("""
-**Instructions:**
-1. Edit the LaTeX file in the left panel
-2. Click a section in the Table of Contents to jump to it
-3. Save changes and compile (auto-compile optional)
-4. Choose between PDF viewing modes on the right
-
-**Features:**
-- Enhanced hierarchical Table of Contents with search
-- Two PDF viewing modes: Embedded viewer or Page Navigator
-- Direct jump to sections in the editor
-- Persistent PDF preview across compilations
-- Detailed compilation logs
-
-📁 **Repository structure:**
