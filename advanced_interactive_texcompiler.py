@@ -61,9 +61,7 @@ def extract_toc_lines(content):
             })
     return toc
 
-toc_items = extract_toc_lines(tex_content)
-
-# Session state for PDF data and filename
+# Session state initialization
 if 'pdf_data' not in st.session_state:
     st.session_state.pdf_data = None
 if 'pdf_filename' not in st.session_state:
@@ -78,6 +76,8 @@ if 'tex_content' not in st.session_state:
     st.session_state.tex_content = tex_content
 if 'doc' not in st.session_state:
     st.session_state.doc = None
+if 'toc_items' not in st.session_state:
+    st.session_state.toc_items = extract_toc_lines(tex_content)
 
 # Main layout with two columns
 col1, col2 = st.columns([1, 1])
@@ -93,6 +93,9 @@ with col1:
         toc_container = st.container(height=650)
         
         with toc_container:
+            # Always use the latest TOC items from session state
+            toc_items = st.session_state.toc_items
+            
             if toc_items:
                 # TOC search functionality
                 search_query = st.text_input("🔍 Search sections...", "", key="toc_search")
@@ -116,9 +119,10 @@ with col1:
                     
                     # Create a button for each TOC item
                     if st.button(f"{indent}{level_icon} {item['title']}", 
-                                 key=f"toc_{i}", 
+                                 key=f"toc_{i}_{item['line']}",  # Include line number in key
                                  use_container_width=True):
                         st.session_state.selected_line = item['line']
+                        st.rerun()  # Force rerun to execute JavaScript
             else:
                 st.info("No sections found in document.")
     
@@ -129,7 +133,7 @@ with col1:
             "language": "latex",
             "theme": "monokai",
             "key": "tex_editor",
-            "height": 650,  # Increased height
+            "height": 650,
             "auto_update": True,
             "font_size": 14,
             "wrap": True
@@ -140,6 +144,8 @@ with col1:
         # Update session state if content changes
         if edited_tex != st.session_state.tex_content:
             st.session_state.tex_content = edited_tex
+            # Update TOC with current content
+            st.session_state.toc_items = extract_toc_lines(edited_tex)
 
     # Save and compile options below the editor
     auto_compile = st.checkbox("🔁 Auto-compile after saving", value=True)
