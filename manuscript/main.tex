@@ -541,12 +541,18 @@ Large polarization (Pr > 150 μC/cm2) and fast switching; improved endurance due
 
 \par In summary, the understanding of processing--microstructure--property (PSP) in 2D ferroelectrics remains in its early stages but is advancing rapidly. Film quality and layer stacking are determined by processing techniques, such as exfoliation, chemical vapor deposition (CVD) growth, and stacking methods. The structural characteristics—including the number of layers, stacking order, and domain configuration—are critically important. Switchable polarization is demonstrated at the atomic scale by these attributes, enabling novel device functionalities. 
 
-\subsection{Comparative Trends and Emerging Techniques}
+\subsection*{Comparative Trends and Emerging Techniques}
+\par In the various classes of ferroelectric materials, recent literature reveals several unifying trends:
+\begin{itemize}
+    \item \textbf{Microstructural Engineering is Key:} The enhancement and customization of ferroelectric properties have mainly been accomplished through intentional structural engineering at the micro and nano scales. This involves managing grain size in ceramics, adjusting phase content in polymers, and carefully assembling layers in 2D materials. The density and mobility of domain walls are vital factors—optimized domain walls in perovskites lead to improved permittivity and piezoelectric responses. At the same time, aligned dipoles in PVDF provide similar advantages. On the other hand, uncontrolled defects, such as grain boundaries and vacancies, can act as pinning sites that obstruct polarization switching. As a result, better ferroelectric performance is consistently found in well-ordered microstructures, including single-crystal films, highly oriented polymers, and large-domain 2D crystals, all produced through controlled processing methods \cite{ahbab2025comprehensive,tan2015unfolding}.
+    \item \textbf{Doping and Chemistry Tuning in Advanced Materials:} Chemical composition remains a powerful lever in materials design, spanning multi-doped KNN ceramics with record piezoelectricity, tailored PVDF copolymers, and high-throughput discovery of novel 2D compounds. Over the past five years, chemical processing (doping, alloying) has been observed to act synergistically with physical processing. Incorporating Sc into AlN requires precise sputtering to stabilize the ferroelectric phase. Similarly, HfO₂ alloyed with Zr or other dopants necessitates controlled annealing to induce ferroelectricity. The concept of phase convergence—morphotropic or polymorphic phase boundaries—is now being extended to non-perovskites, such as phase-mixed HfO₂ or AlScN, to enhance strain tolerance \cite{zhu2025ultrahigh,kruse2023two}.  
+\begin{itemize}
+    \item \textbf{Integration and Size-Scaling Challenges in Ferroelectric Materials:} The integration of ferroelectric materials into semiconductor technology has emerged as a critical research focus. Between 2019 and 2025, HfO\textsubscript{2}-based ferroelectrics were prototyped for embedded non-volatile memory applications, while AlScN was explored for high-temperature electronics due to its thermal stability. Key processing challenges center on compatibility with existing semiconductor workflows, necessitating low thermal budgets and conformal deposition techniques, such as atomic layer deposition (ALD) for HfO\textsubscript{2}. To maintain ferroelectric switching at reduced dimensions, strategies such as interface engineering, strain doping, and optimized electrode selection have been developed. These approaches have enabled functional ferroelectric layers as thin as 1.5\, nm in HfO\textsubscript{2}-ZrO\textsubscript{2} (HZO) systems and robust 2D monolayers. Meanwhile, bulk applications—including sensors and actuators—have seen growing interest in additive manufacturing techniques. Early demonstrations include 3D-printed PVDF and freeze-cast textured ceramics, which allow microstructure customization through controlled fabrication processes \cite{zhang2024new,shi2023interface,cho2024atomic}.
+    \item \textbf{Advanced Characterization \& Computational Tools:} Recent advances in \SI{4}{\deci\meter} STEM, synchrotron mapping, and \textit{in-situ} techniques now enable direct observation of ferroelectric domain dynamics at defects. Combined with phase-field simulations and machine learning (ML), these reveal polarization-switching mechanisms (PSP). ML analysis correlates \ce{HfO2} defect patterns with hysteresis behavior, while interpretable ML suggests new piezoelectric compositions. Such computational tools are increasingly predicting optimal microstructures, reducing experimental trial-and-error \cite{zhu2025ultrahigh,alhada2025elucidating,tan2015unfolding,zhang2024new }.
+\item \textbf{Notable Discoveries:} Finally, it is worth emphasizing a few notable recent discoveries that epitomize PSP advances: The realization of lead-free piezoceramics matching or exceeding \textit{PZT}—e.g., textured \textit{KNN} with $d_{33} \sim 800\,\text{pC/N}$—has been made possible through processing innovations such as oriented grain growth and compositional tuning. Concurrently, the demonstration of ferroelectricity in ultra-thin and unconventional materials, including ferroelectric order in monolayer \textit{WTe\textsubscript{2}} or \textit{In\textsubscript{2}Se\textsubscript{3}}, as well as switching via interlayer sliding, has redefined the boundaries of ferroelectricity, enabling ångström-scale devices. Furthermore, the development of \textit{CMOS}-compatible ferroelectric memory, particularly \textit{HfO\textsubscript{2}}-based \textit{FeFETs} and \textit{FeRAM}, leverages precise thin-film processing to meet endurance and retention targets, translating fundamental principles of phase and defect control (\textit{PSP}) into viable technology \cite{wu2021sliding,shi2023interface,zhu2025ultrahigh}.  
+\end{itemize}
 
-
-
-
-
+\par In conclusion, Ferroelectric research has shifted toward a design-driven paradigm, with processing strategies systematically optimized—often through computational guidance—to tailor microstructures and properties. Across material classes, precise control of processing–structure–property relationships has become central to advancing next-generation devices. Future progress will rely on integrated multi-scale modeling, in situ characterization, and novel fabrication techniques, enabling ferroelectrics with enhanced performance, multifunctional capabilities, and wider technological deployment.
 
 
 
@@ -607,7 +613,7 @@ $\phi_{Al}$ ($K^{-1}$) & -3.72 $\times$ 10$^{-10}$ $T^2$ + 4.22 $\times$ 10$^{-7
 %\end{table*}
 %\subsubsection{Multiphysics simulation} \label{fea_simulation}
 \section{Materials Behavior study through Experiments} \label{electromagnetic_behavior}
-Electromagnetic behavior - fundamental and applications
+Electromagnetic behavior - fundamentals and applications
 
 \section{Theoretical Advancements and Data-driven Multiscale Computational Models.} \label{multiphysics-computational-models}
 Multiphysics computational models for the mechanistic understanding of ferroelectric effects
@@ -679,7 +685,7 @@ The data and codes for this study are available in \url{https://github.com/anilk
 %used for the numbered scheme. This can also be used for the numbered
 %with new options of {natbib.sty}. The second one is for the author year
 %scheme. When  you use model2-names.bst, the citation commands will be
-%like \verb+\citep+,  \verb+\citet+, \verb+\citealt+ etc. However when
+%like \verb+\citep+,  \verb+\citet+, \verb+\citealt+ etc. However, when
 %you use model1-num-names.bst, you may use only \verb+\cite+ command.
 
 %\verb+thebibliography+ environment.  Each reference is a
