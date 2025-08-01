@@ -678,37 +678,24 @@ with $L$ being the kinetic coefficient and the functional derivative accounting 
 \subsection*{Challenges in Multiscale Parameter Transfer}
 Despite these successes, bridging scales remains challenging. A key difficulty in sequential approaches lies in the transfer of parameters across disparate scales. Parameters obtained at the nanoscale may not directly translate into effective microscale values, particularly when collective effects or temperature renormalization are considered. For instance, while density functional theory (DFT) typically corresponds to $0\,\text{K}$, phase-field coefficients often describe behavior near room temperature or the Curie temperature ($T_{\text{C}}$), necessitating the renormalization of interaction strengths. Additionally, material properties can be influenced by environment- or size-dependent effects that vary across scales. Careful parameter passing between adjacent scales is required in sequential multiscale methods, posing a challenge when spanning the complete nano-to-macro hierarchy \cite{volker2011multiscale}. Concurrent multiscale coupling---such as directly linking on-the-fly density functional theory (DFT) calculations to continuum solvers---is often deemed impractical for ferroelectrics owing to prohibitive computational costs. To circumvent this limitation, intermediate modeling approaches, such as molecular dynamics (MD) simulations employing specialized ferroelectric force fields (occasionally derived from DFT), have been utilized. These methods facilitate the extraction of dynamical properties and the calibration of phase-field domain kinetics \cite{volker2011multiscale}. Achieving quantitative consistency across various lengths and time scales remains challenging, even with these methods. The table below highlights several notable studies that successfully integrated DFT (or atomistic models) with phase-field approaches, showcasing the techniques employed.
 
-
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
-\caption{Summary of processing-microstructure-property relationships in inorganic ferroelectrics, highlighting key rc achievements [68--70, 73, 74, 76].}
-\label{tab:processing}
-\begin{tabular}{p{3cm}p{4cm}p{4cm}p{4cm}}
+\caption{Selected studies bridging first-principles (DFT) and phase-field models in ferroelectrics.}
+\label{tab:DFT_Phasefield_Studies}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{p{3cm}p{4cm}p{7cm}}
 \toprule
-\textbf{Material / System} & \textbf{Key Processing Method(s)} & \textbf{Microstructural Outcome} & \textbf{Property Impact} \\
+\textbf{Study (Year)} & \textbf{Approach} & \textbf{Key Contribution} \\
 \midrule
-BaTiO$_3$ ceramic (perovskite) & 
-Controlled sintering (vary grain size) & 
-1 \si{\micro\meter} grains $\rightarrow$ high domain wall density (optimal); finer grains $\rightarrow$ clamped domains & 
-Max. permittivity at 1 \si{\micro\meter} grain (domain contribution peak); larger grains increase $d_{33}$ and $P_r$ if low defects. \\
-\midrule
-(K, Na)NbO$_3$-based ceramic (lead-free) & 
-Multi-element doping (Sb, Bi, etc.) + tape-casting texturing & 
-Tetragonal phase induced; nanoscale heterophase domains aligned with grain orientation & 
-Ultrahigh piezoelectric response ($d_{33}$ \SI{800}{pC/N}) achieved; high $k_{33}$ and $T_c$ maintained. \\
-\midrule
-Hf$_{0.5}$Zr$_{0.5}$O$_2$ thin film (fluorite) & 
-Interface engineering (electrode termination on LSMO); TiN substrate orientation control & 
-Enhanced orthorhombic ferroelectric phase fraction; preferential domain orientation ((001)$_O$ axes out-of-plane) & 
-Higher remanent $P_r$, stable ferroelectricity even at \SI{1.5}{nm} thickness, no wake-up cycling needed. \\
-\midrule
-Al$_{0.7}$Sc$_{0.3}$N thin film (wurtzite) & 
-HiPIMS sputtering in N$_2$-rich plasma; epitaxial growth on 4H-SiC & 
-Highly c-axis textured, low defect density (minimal N-vacancies, fewer grain boundary tilts) & 
-Large polarization ($P_r > \SI{150}{\micro\coulomb\per\square\centi\meter}$) and fast switching; improved endurance due to fewer pinning sites (ongoing device tests). \\
+Gu \textit{et al.} (2014) & Phase-field + DFT (domain wall structure) & Demonstrated that 180$^\circ$ domain walls in BaTiO$_3$ exhibit mixed Bloch–Néel character due to flexoelectric effects. Combined phase-field modeling with first-principles calculations, revealing intrinsic transverse polarization components at domain walls. \\
+Zhang \textit{et al.} (2022) & DFT-calibrated phase-field (domain walls) & Calculated domain wall energies in PbTiO$_3$ and BaTiO$_3$ via DFT, providing parameters for the gradient energy coefficient in phase-field models. Ensured realistic wall energies and thicknesses, enhancing the predictive accuracy of domain structures. \\
+Shao and Huang (2025) & Effective Hamiltonian + Phase-field (thermal hysteresis) & Combined first-principles-based effective Hamiltonian (atomistic Monte Carlo) with mesoscale phase-field simulations to investigate thermal hysteresis in BaTiO$_3$. Consistently captured the electrocaloric effect and first-order phase transitions across multiple scales. \\
+Li \textit{et al.} (2016); Liu \textit{et al.} (2017) & DFT-informed Landau theory (sequential approach) & Derived Landau-Devonshire polynomial coefficients from first-principles calculations to parameterize phase-field simulations. Improved modeling accuracy of ferroelectric devices (e.g., thin-film capacitors) by using realistic DFT-based dielectric and piezoelectric constants. \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+
 
 
 
